@@ -1,10 +1,8 @@
-"""Algoritmos básicos de substituição: FIFO, LRU e Ótimo (stubs)."""
+"""Algoritmos básicos de substituição: FIFO, LRU e Ótimo."""
 
 from typing import List
 
 from .models import AlgoritmoSubstituicao, Frame, Referencia
-
-_MSG = "Aguardando implementação"
 
 
 class FIFO(AlgoritmoSubstituicao):
@@ -18,13 +16,17 @@ class FIFO(AlgoritmoSubstituicao):
     nome = "FIFO"
 
     def ao_acessar(self, frame: Frame, passo: int, ref: Referencia) -> None:
-        raise NotImplementedError(_MSG)
+        # No FIFO, um acerto (HIT) não altera o tempo em que a página entrou na memória.
+        pass
 
     def ao_carregar(self, frame: Frame, passo: int, ref: Referencia) -> None:
-        raise NotImplementedError(_MSG)
+        # Registra o momento (passo) em que a página foi carregada no frame.
+        frame.tempo_carga = passo
 
     def selecionar_vitima(self, frames: List[Frame], passo_atual: int) -> int:
-        raise NotImplementedError(_MSG)
+        # Escolhe o frame com o menor tempo_carga (a página que entrou primeiro).
+        vitima = min(frames, key=lambda f: (f.tempo_carga, f.id))
+        return vitima.id
 
 
 class LRU(AlgoritmoSubstituicao):
@@ -38,13 +40,18 @@ class LRU(AlgoritmoSubstituicao):
     nome = "LRU"
 
     def ao_acessar(self, frame: Frame, passo: int, ref: Referencia) -> None:
-        raise NotImplementedError(_MSG)
+        # Em caso de HIT, atualiza o carimbo de tempo do último uso para o passo atual.
+        frame.ultimo_acesso = passo
 
     def ao_carregar(self, frame: Frame, passo: int, ref: Referencia) -> None:
-        raise NotImplementedError(_MSG)
+        # Ao entrar na memória, o primeiro uso da página é o próprio passo de carga.
+        frame.ultimo_acesso = passo
 
     def selecionar_vitima(self, frames: List[Frame], passo_atual: int) -> int:
-        raise NotImplementedError(_MSG)
+        # Escolhe o frame cujo ultimo_acesso é o menor (mais antigo).
+        # Em caso de empate, desempata pelo menor tempo_carga e menor id.
+        vitima = min(frames, key=lambda f: (f.ultimo_acesso, f.tempo_carga, f.id))
+        return vitima.id
 
 
 class Otimo(AlgoritmoSubstituicao):
@@ -58,10 +65,27 @@ class Otimo(AlgoritmoSubstituicao):
     nome = "OPT"
 
     def ao_acessar(self, frame: Frame, passo: int, ref: Referencia) -> None:
-        raise NotImplementedError(_MSG)
+        # O algoritmo Ótimo olha apenas para o futuro; hits não exigem metadados extras.
+        pass
 
     def ao_carregar(self, frame: Frame, passo: int, ref: Referencia) -> None:
-        raise NotImplementedError(_MSG)
+        # O tempo_carga já é registrado para servir como critério de desempate.
+        frame.tempo_carga = passo
+
+    def _proximo_uso(self, pagina: int, passo_atual: int) -> float:
+        """Retorna o índice do próximo acesso futuro da página, ou infinito se não houver."""
+        # Como passo_atual começa em 1, os acessos futuros começam no índice passo_atual.
+        for indice_futuro in range(passo_atual, len(self.trace_completo)):
+            if self.trace_completo[indice_futuro].pagina == pagina:
+                return float(indice_futuro)
+        return float("inf")
 
     def selecionar_vitima(self, frames: List[Frame], passo_atual: int) -> int:
-        raise NotImplementedError(_MSG)
+        # Queremos a MAIOR distância até o próximo uso (-_proximo_uso mais negativo)
+        # e, em caso de empate (ex.: duas páginas com distância infinita),
+        # o MENOR tempo_carga (página residente há mais tempo).
+        vitima = min(
+            frames,
+            key=lambda f: (-self._proximo_uso(f.pagina, passo_atual), f.tempo_carga, f.id),
+        )
+        return vitima.id
